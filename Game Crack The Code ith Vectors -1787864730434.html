@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Juego del Baúl del Tesoro</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f6f9; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+    .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+    .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+    .nav-buttons button { flex: 1; padding: 10px; border: none; background: #e0e0e0; cursor: pointer; border-radius: 6px; font-weight: bold; }
+    .nav-buttons button.active { background: #2c3e50; color: white; }
+    
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Estilos Configuración */
+    .config-count-container { margin-bottom: 20px; text-align: left; background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef; }
+    .config-count-container label { font-weight: bold; margin-right: 10px; color: #333; font-size: 0.95rem; }
+    .config-count-container select { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; font-size: 1rem; cursor: pointer; }
+
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .config-item { display: flex; flex-direction: column; text-align: left; }
+    .config-item label { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: #555; }
+    input[type="text"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; text-transform: uppercase; }
+    
+    /* Estilos Juego */
+    .chest-container { margin: 20px 0; height: 160px; display: flex; justify-content: center; align-items: center; }
+    .chest-svg { width: 150px; height: 150px; }
+    .message { font-size: 1.1rem; font-weight: bold; min-height: 30px; margin: 15px 0; }
+    .message.success { color: #27ae60; }
+    .message.error { color: #c0392b; }
+    .message.victory { color: #f39c12; font-size: 1.3rem; }
+    
+    .btn-main { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    .btn-main:hover { background: #219150; }
+    .btn-main:disabled { background: #bdc3c7; cursor: not-allowed; }
+    .counter { font-size: 0.95rem; color: #7f8c8d; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="nav-buttons">
+    <button id="btn-mode-config" class="active" onclick="switchMode('config')">Modo Configuración</button>
+    <button id="btn-mode-play" onclick="switchMode('play')">Modo Jugar</button>
+  </div>
+
+  <div id="screen-config" class="screen active">
+    <h2>Configuración de Códigos</h2>
+    
+    <div class="config-count-container">
+      <label for="code-count">Cantidad de códigos a adivinar (1 a 10):</label>
+      <select id="code-count" onchange="generateInputs(this.value)"></select>
+    </div>
+
+    <p style="font-size: 0.85rem; color: #666;">Ingresa los códigos (solo letras, de 1 a 16 caracteres).</p>
+    <form id="config-form" onsubmit="saveConfiguration(event)">
+      <div class="config-grid" id="inputs-container"></div>
+      <button type="submit" class="btn-main">Guardar y Empezar Juego</button>
+    </form>
+  </div>
+
+  <div id="screen-play" class="screen">
+    <div class="counter" id="code-counter">Códigos restantes: 0 / 0</div>
+    
+    <div class="chest-container">
+      <svg id="chest-closed" class="chest-svg" viewBox="0 0 100 100">
+        <rect x="15" y="45" width="70" height="40" rx="4" fill="#8B4513" stroke="#5c2d0c" stroke-width="2"/>
+        <path d="M 15 45 Q 50 20 85 45 Z" fill="#A0522D" stroke="#5c2d0c" stroke-width="2"/>
+        <rect x="25" y="45" width="8" height="40" fill="#DAA520"/>
+        <rect x="67" y="45" width="8" height="40" fill="#DAA520"/>
+        <path d="M 25 43 Q 50 22 25 45" fill="none" stroke="#DAA520" stroke-width="8"/>
+        <path d="M 67 43 Q 50 22 67 45" fill="none" stroke="#DAA520" stroke-width="8"/>
+        <rect x="43" y="48" width="14" height="18" rx="2" fill="#DAA520" stroke="#8B6508" stroke-width="1"/>
+        <circle cx="50" cy="54" r="2.5" fill="#333"/>
+        <polygon points="49,54 51,54 52,61 48,61" fill="#333"/>
+      </svg>
+
+      <svg id="chest-open" class="chest-svg" viewBox="0 0 100 100" style="display: none;">
+        <path d="M 15 35 Q 50 10 85 35 Z" fill="#A0522D" stroke="#5c2d0c" stroke-width="2" transform="rotate(-30 15 35)"/>
+        <circle cx="35" cy="42" r="5" fill="#FFD700"/>
+        <circle cx="50" cy="40" r="6" fill="#FFD700"/>
+        <circle cx="65" cy="43" r="5" fill="#FFD700"/>
+        <polygon points="50,25 53,32 60,32 54,36 56,43 50,38 44,43 46,36 40,32 47,32" fill="#FFF700" opacity="0.8"/>
+        <rect x="15" y="45" width="70" height="40" rx="4" fill="#8B4513" stroke="#5c2d0c" stroke-width="2"/>
+        <rect x="25" y="45" width="8" height="40" fill="#DAA520"/>
+        <rect x="67" y="45" width="8" height="40" fill="#DAA520"/>
+        <rect x="43" y="45" width="14" height="10" rx="2" fill="#DAA520" stroke="#8B6508" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <div class="message" id="game-message"></div>
+
+    <form id="play-form" onsubmit="submitAttempt(event)">
+      <input type="text" id="player-input" placeholder="Ingresa un código" maxlength="16" required autocomplete="off">
+      <br><br>
+      <button type="submit" id="btn-submit" class="btn-main">Probar Código</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  let targetCodes = [];
+  let totalCodesCount = 10;
+  let isProcessing = false;
+
+  // Llenar el desplegable con opciones del 1 al 10
+  const countSelect = document.getElementById('code-count');
+  for (let i = 1; i <= 10; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = i;
+    if (i === 10) option.selected = true; // 10 por defecto
+    countSelect.appendChild(option);
+  }
+
+  // Generar dinámicamente las casillas según el número elegido
+  function generateInputs(count) {
+    const container = document.getElementById('inputs-container');
+    container.innerHTML = '';
+    for (let i = 1; i <= count; i++) {
+      const div = document.createElement('div');
+      div.className = 'config-item';
+      div.innerHTML = `
+        <label for="code-${i}">Código ${i}:</label>
+        <input type="text" id="code-${i}" maxlength="16" pattern="[a-zA-Z]+" title="Solo letras de 1 a 16 caracteres" required>
+      `;
+      container.appendChild(div);
+    }
+  }
+
+  // Inicializar con 10 casillas al cargar por primera vez
+  generateInputs(10);
+
+  function switchMode(mode) {
+    if (isProcessing) return;
+    
+    document.getElementById('btn-mode-config').classList.toggle('active', mode === 'config');
+    document.getElementById('btn-mode-play').classList.toggle('active', mode === 'play');
+    document.getElementById('screen-config').classList.toggle('active', mode === 'config');
+    document.getElementById('screen-play').classList.toggle('active', mode === 'play');
+  }
+
+  function saveConfiguration(e) {
+    e.preventDefault();
+    targetCodes = [];
+    const count = parseInt(document.getElementById('code-count').value, 10);
+    
+    for (let i = 1; i <= count; i++) {
+      const input = document.getElementById(`code-${i}`);
+      const val = input ? input.value.trim().toUpperCase() : '';
+      if (!val || !/^[A-Z]+$/.test(val)) {
+        alert(`El código ${i} no es válido. Debe contener solo letras.`);
+        return;
+      }
+      targetCodes.push(val);
+    }
+
+    totalCodesCount = targetCodes.length;
+    updateCounter();
+    resetMessage();
+
+    // Resetear el estado del formulario de juego
+    const inputEl = document.getElementById('player-input');
+    const btnSubmit = document.getElementById('btn-submit');
+    inputEl.disabled = false;
+    btnSubmit.disabled = false;
+    inputEl.value = '';
+    setChestState(false);
+
+    switchMode('play');
+  }
+
+  function updateCounter() {
+    document.getElementById('code-counter').textContent = `Códigos restantes: ${targetCodes.length} / ${totalCodesCount}`;
+  }
+
+  function setChestState(isOpen) {
+    document.getElementById('chest-closed').style.display = isOpen ? 'none' : 'block';
+    document.getElementById('chest-open').style.display = isOpen ? 'block' : 'none';
+  }
+
+  function resetMessage() {
+    const msgEl = document.getElementById('game-message');
+    msgEl.textContent = '';
+    msgEl.className = 'message';
+  }
+
+  function submitAttempt(e) {
+    e.preventDefault();
+    if (isProcessing) return;
+
+    if (targetCodes.length === 0) {
+      alert("Por favor configura los códigos primero.");
+      switchMode('config');
+      return;
+    }
+
+    const inputEl = document.getElementById('player-input');
+    const attempt = inputEl.value.trim().toUpperCase();
+    const msgEl = document.getElementById('game-message');
+    const btnSubmit = document.getElementById('btn-submit');
+
+    if (!attempt) return;
+
+    const matchIndex = targetCodes.indexOf(attempt);
+
+    if (matchIndex !== -1) {
+      // Código Correcto
+      targetCodes.splice(matchIndex, 1);
+      updateCounter();
+      setChestState(true);
+
+      if (targetCodes.length === 0) {
+        // Victoria Final al adivinar todos los códigos elegidos
+        msgEl.textContent = "Congratulations. You are champion cracking codes!";
+        msgEl.className = "message victory";
+        btnSubmit.disabled = true;
+        inputEl.disabled = true;
+      } else {
+        // Acierto Parcial
+        msgEl.textContent = "Congratulations, You have cracked the code";
+        msgEl.className = "message success";
+        
+        isProcessing = true;
+        btnSubmit.disabled = true;
+        inputEl.disabled = true;
+
+        setTimeout(() => {
+          setChestState(false);
+          resetMessage();
+          inputEl.value = '';
+          inputEl.disabled = false;
+          btnSubmit.disabled = false;
+          inputEl.focus();
+          isProcessing = false;
+        }, 3000);
+      }
+    } else {
+      // Código Incorrecto
+      setChestState(false);
+      msgEl.textContent = "Failed. Try again";
+      msgEl.className = "message error";
+
+      isProcessing = true;
+      btnSubmit.disabled = true;
+      inputEl.disabled = true;
+
+      setTimeout(() => {
+        resetMessage();
+        inputEl.value = '';
+        inputEl.disabled = false;
+        btnSubmit.disabled = false;
+        inputEl.focus();
+        isProcessing = false;
+      }, 3000);
+    }
+  }
+</script>
+
+</body>
+</html>
